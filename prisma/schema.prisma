@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String?  @map("display_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  dailyLogs           DailyLog[]
+  weeklyAssessments   WeeklyAssessment[]
+
+  @@map("users")
+}
+
+/// One row per calendar day — matches spreadsheet daily columns.
+model DailyLog {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  logDate           DateTime @db.Date @map("log_date")
+  weightKg          Decimal? @db.Decimal(5, 2) @map("weight_kg")
+  steps             Int?
+  caloriesKcal      Int?     @map("calories_kcal")
+  fatGrams          Int?     @map("fat_grams")
+  carbsGrams        Int?     @map("carbs_grams")
+  proteinGrams      Int?     @map("protein_grams")
+  garminCaloriesKcal Int?    @map("garmin_calories_kcal")
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, logDate])
+  @@index([userId, logDate])
+  @@map("daily_logs")
+}
+
+/// Weekly check-in: measurements + subjective scores (spreadsheet right section).
+model WeeklyAssessment {
+  id                    String   @id @default(uuid())
+  userId                String   @map("user_id")
+  weekNumber            Int      @map("week_number")
+  weekStartDate         DateTime @db.Date @map("week_start_date")
+  restingPulseBpm       Int?     @map("resting_pulse_bpm")
+  bellyCm               Decimal? @db.Decimal(5, 2) @map("belly_cm")
+  neckCm                Decimal? @db.Decimal(5, 2) @map("neck_cm")
+  chestCm               Decimal? @db.Decimal(5, 2) @map("chest_cm")
+  satietyScore          Int?     @map("satiety_score")
+  calorieTrackingScore  Int?     @map("calorie_tracking_score")
+  sleepScore            Int?     @map("sleep_score")
+  wellbeingScore        Int?     @map("wellbeing_score")
+  stressScore           Int?     @map("stress_score")
+  notes                 String?
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStartDate])
+  @@index([userId, weekNumber])
+  @@map("weekly_assessments")
+}

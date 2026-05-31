@@ -1,0 +1,37 @@
+services:
+  fatoven-postgres:
+    image: postgres:16-alpine
+    container_name: fatoven-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fatoven
+      POSTGRES_PASSWORD: fatoven
+      POSTGRES_DB: fatoven
+    volumes:
+      - fatoven_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fatoven -d fatoven"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  fatoven-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fatoven-api
+    restart: unless-stopped
+    depends_on:
+      fatoven-postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://fatoven:fatoven@fatoven-postgres:5432/fatoven?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: 7d
+    ports:
+      - "3000:3000"
+
+volumes:
+  fatoven_postgres_data:

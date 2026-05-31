@@ -1,0 +1,22 @@
+# Local development: Postgres only. Run API with `npm run dev` on the host.
+services:
+  fatoven-postgres:
+    image: postgres:16-alpine
+    container_name: fatoven-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fatoven
+      POSTGRES_PASSWORD: fatoven
+      POSTGRES_DB: fatoven
+    ports:
+      - "5433:5432"
+    volumes:
+      - fatoven_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fatoven -d fatoven"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  fatoven_postgres_data:
