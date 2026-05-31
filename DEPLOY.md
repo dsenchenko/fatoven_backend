@@ -64,13 +64,18 @@ Postgres is **not** exposed on the host (only inside Docker).
 
 ---
 
-## 4. Frontend
+## 4. Frontend (PM2 on host)
 
-Point the React app at the server IP:
+Backend stays in Docker. Serve the React app with PM2 — see `/opt/fatoven/DEPLOY.md` (sibling to this repo).
+
+Before building:
 
 ```env
+# fatoven_frontend/.env.production
 VITE_API_BASE_URL=http://YOUR_SERVER_IP:3000
 ```
+
+Then from `/opt/fatoven`: `./deploy.sh` (starts `fatoven-web` on port **4173**).
 
 ---
 
