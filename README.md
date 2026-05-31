@@ -17,8 +17,9 @@ Inside Docker, services still talk on `fatoven-postgres:5432` and the API listen
 
 | Module    | Path prefix           | Description                                      |
 |-----------|------------------------|--------------------------------------------------|
-| **auth**  | `/api/v1/auth`         | Register, login, JWT, current user                 |
-| **tracking** | `/api/v1/tracking`  | Daily logs, weekly summaries, weekly assessments |
+| **auth**  | `/api/v1/auth`         | Register, login, JWT, username, current user       |
+| **tracking** | `/api/v1/tracking`  | Daily logs, weekly summaries, weekly assessments (own data) |
+| **stats** | `/api/v1/stats`       | Read-only tracking for any user by `@username` (JWT required) |
 
 Planned later: body composition (US Navy), Garmin sync, food catalog, AI agent, exercises, videos.
 
@@ -70,6 +71,37 @@ rm -rf node_modules && npm install
 
 Do not mount or copy `node_modules` from Docker into the host project.
 
+## Shareable stats (`/api/v1/stats/:username`)
+
+Authenticated users can view **another user’s read-only** tracking data (e.g. frontend route `/{username}/stats`).
+
+- All stats routes require `Authorization: Bearer <token>`
+- **GET only** — no writes under `/stats/*`
+- Target user must have a `username` set; otherwise **404**
+- Profile responses omit `email`
+
+| Method | Path | Response |
+|--------|------|----------|
+| GET | `/:username` | `{ profile }` |
+| GET | `/:username/daily?from=&to=` | `{ logs }` |
+| GET | `/:username/weekly/summaries?from=&to=` | `{ summaries }` |
+| GET | `/:username/weekly/assessments` | `{ assessments }` |
+| GET | `/:username/weekly/assessments/:weekStartDate` | `{ assessment }` |
+
+**Username rules:** 3–30 chars, `^[a-z0-9_]+$`, lowercase on save. Reserved: `login`, `register`, `profile`, `daily`, `history`, `dashboard`, `progress`, `weekly`, `food`, `garmin`, `coach`, `stats`, `api`, `health`.
+
+```bash
+# Set your username (authenticated)
+curl -s -X PATCH http://localhost:3001/api/v1/auth/username \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"mitch"}'
+
+# View another user's stats (any logged-in user)
+curl -s http://localhost:3001/api/v1/stats/mitch \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ## API examples
 
 ### Register
@@ -77,7 +109,7 @@ Do not mount or copy `node_modules` from Docker into the host project.
 ```bash
 curl -s -X POST http://localhost:3001/api/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"you@example.com","password":"secret123","displayName":"Mitch"}'
+  -d '{"email":"you@example.com","password":"secret123","displayName":"Mitch","username":"mitch"}'
 ```
 
 ### Login
