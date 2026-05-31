@@ -31,6 +31,31 @@ Planned later: body composition (US Navy), Garmin sync, food catalog, AI agent, 
 
 **Weekly assessment**: pulse, belly/neck/chest cm, scores 1–10 for satiety, calorie tracking, sleep, wellbeing, stress.
 
+## Import / export (spreadsheet format)
+
+Same layout as the **Tracker** sheet in `DS_Max.xlsx` (Russian column headers, weekly averages, assessment block).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/tracking/export?from=&to=` | Download `.xlsx` |
+| POST | `/api/v1/tracking/import?mode=merge\|replace` | Upload `.xlsx` (`multipart` field `file`) |
+
+- **`merge`** (default): upsert daily logs and weekly assessments
+- **`replace`**: delete all your tracking data, then import
+
+```bash
+# Export
+curl -s "http://localhost:3001/api/v1/tracking/export" \
+  -H "Authorization: Bearer $TOKEN" -o fatoven-tracker.xlsx
+
+# Import (merge)
+curl -s -X POST "http://localhost:3001/api/v1/tracking/import?mode=merge" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@DS_Max.xlsx"
+```
+
+Response: `{ mode, imported: { dailyLogs, weeklyAssessments }, dateRange: { from, to } }`
+
 ## Quick start
 
 ### Docker (full stack)

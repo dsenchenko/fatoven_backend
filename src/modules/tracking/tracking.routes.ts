@@ -1,8 +1,24 @@
 import { Router } from "express";
+import multer from "multer";
 import { z } from "zod";
 import { asyncHandler } from "../../shared/http";
 import { requireAuth } from "../auth/auth.middleware";
+import type { SpreadsheetService } from "./spreadsheet.service";
 import type { TrackingService } from "./tracking.service";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok =
+      file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      file.mimetype === "application/vnd.ms-excel" ||
+      file.originalname.endsWith(".xlsx") ||
+      file.originalname.endsWith(".xls");
+    if (ok) cb(null, true);
+    else cb(new Error("Only .xlsx files are supported"));
+  },
+});
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 
@@ -33,9 +49,73 @@ const weeklyAssessmentBodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-export function createTrackingRouter(trackingService: TrackingService): Router {
+export function createTrackingRouter(
+  trackingService: TrackingService,
+  spreadsheetService: SpreadsheetService,
+): Router {
   const router = Router();
   router.use(requireAuth);
+
+  router.get(
+    "/export",
+    asyncHandler(async (req, res) => {
+      const query = z
+        .object({
+          from: dateString.optional(),
+          to: dateString.optional(),
+        })
+        .parse(req.query);
+      const buffer = await spreadsheetService.exportSpreadsheet(
+        req.userId!,
+        query.from,
+        query.to,
+      );
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader("Content-Disposition", 'attachment; filename="fatoven-tracker.xlsx"');
+      res.send(buffer);
+    }),
+  );
+
+  router.post(
+    "/import",
+    (req, res, next) => {
+      upload.single("file")(req, res, (err) => {
+        if (err) {
+          res.status(400).json({
+            error: "invalid_file",
+            message: err.message || "Invalid upload",
+          });
+          return;
+        }
+        next();
+      });
+    },
+    asyncHandler(async (req, res) => {
+      const query = z
+        .object({
+          mode: z.enum(["merge", "replace"]).default("merge"),
+        })
+        .parse(req.query);
+
+      if (!req.file?.buffer) {
+        res.status(400).json({
+          error: "missing_file",
+          message: 'Upload an .xlsx file in the "file" field',
+        });
+        return;
+      }
+
+      const result = await spreadsheetService.importSpreadsheet(
+        req.userId!,
+        req.file.buffer,
+        query.mode,
+      );
+      res.json(result);
+    }),
+  );
 
   router.put(
     "/daily",
