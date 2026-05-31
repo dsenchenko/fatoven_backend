@@ -8,6 +8,14 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
   displayName: z.string().min(1).max(100).optional(),
+  username: z
+    .string()
+    .regex(/^[a-z0-9_]{3,30}$/, "Username must be 3–30 chars: a-z, 0-9, _")
+    .optional(),
+});
+
+const usernameSchema = z.object({
+  username: z.string().regex(/^[a-z0-9_]{3,30}$/, "Username must be 3–30 chars: a-z, 0-9, _"),
 });
 
 const loginSchema = z.object({
@@ -22,7 +30,12 @@ export function createAuthRouter(authService: AuthService): Router {
     "/register",
     asyncHandler(async (req, res) => {
       const body = registerSchema.parse(req.body);
-      const result = await authService.register(body.email, body.password, body.displayName);
+      const result = await authService.register(
+        body.email,
+        body.password,
+        body.displayName,
+        body.username,
+      );
       res.status(201).json(result);
     }),
   );
@@ -41,6 +54,16 @@ export function createAuthRouter(authService: AuthService): Router {
     requireAuth,
     asyncHandler(async (req, res) => {
       const user = await authService.getMe(req.userId!);
+      res.json({ user });
+    }),
+  );
+
+  router.patch(
+    "/username",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const body = usernameSchema.parse(req.body);
+      const user = await authService.updateUsername(req.userId!, body.username);
       res.json({ user });
     }),
   );

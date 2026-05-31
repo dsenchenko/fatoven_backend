@@ -4,6 +4,15 @@ Modular health-tracking API (weight, macros, steps, weekly measurements and subj
 
 Services use the `fatoven` prefix: `fatoven-api`, `fatoven-postgres`.
 
+## Ports (avoid conflicts with other stacks)
+
+| Service           | Host port | Container port | Notes                          |
+|-------------------|-----------|----------------|--------------------------------|
+| `fatoven-api`     | **3001**  | 3000           | `mdw-api` uses host **3000**   |
+| `fatoven-postgres`| **5433**  | 5432           | `mdw-db` uses host **5432**    |
+
+Inside Docker, services still talk on `fatoven-postgres:5432` and the API listens on `3000` internally.
+
 ## Modules (current)
 
 | Module    | Path prefix           | Description                                      |
@@ -32,25 +41,41 @@ cp .env.example .env
 docker compose up --build
 ```
 
-API: http://localhost:3000  
-Health: http://localhost:3000/health
+API: http://localhost:3001  
+Health: http://localhost:3001/health
 
 ### Local development
 
 ```bash
-cp .env.example .env
+cp .env.example .env   # DATABASE_URL uses host port 5433, API port 3001
 docker compose -f docker-compose.dev.yml up -d
 npm install
 npm run db:migrate:dev
 npm run dev
 ```
 
+If `db:migrate:dev` fails with **P1001** on port 5432, your `.env` is stale — use `localhost:5433` (see `.env.example`).
+
+**Node.js:** use **v20+** locally (`nvm install 20`). If you are still on Node 18, run migrations in Docker instead:
+
+```bash
+npm run db:migrate:dev:docker
+```
+
+**esbuild platform error** (`linux-arm64` vs `darwin-arm64`): `node_modules` was installed inside Docker. On your Mac, reinstall:
+
+```bash
+rm -rf node_modules && npm install
+```
+
+Do not mount or copy `node_modules` from Docker into the host project.
+
 ## API examples
 
 ### Register
 
 ```bash
-curl -s -X POST http://localhost:3000/api/v1/auth/register \
+curl -s -X POST http://localhost:3001/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"you@example.com","password":"secret123","displayName":"Mitch"}'
 ```
@@ -58,7 +83,7 @@ curl -s -X POST http://localhost:3000/api/v1/auth/register \
 ### Login
 
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:3000/api/v1/auth/login \
+TOKEN=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"you@example.com","password":"secret123"}' | jq -r .token)
 ```
@@ -66,7 +91,7 @@ TOKEN=$(curl -s -X POST http://localhost:3000/api/v1/auth/login \
 ### Upsert daily log
 
 ```bash
-curl -s -X PUT http://localhost:3000/api/v1/tracking/daily \
+curl -s -X PUT http://localhost:3001/api/v1/tracking/daily \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -84,14 +109,14 @@ curl -s -X PUT http://localhost:3000/api/v1/tracking/daily \
 ### Weekly summaries (averages)
 
 ```bash
-curl -s "http://localhost:3000/api/v1/tracking/weekly/summaries?from=2025-01-01&to=2025-03-01" \
+curl -s "http://localhost:3001/api/v1/tracking/weekly/summaries?from=2025-01-01&to=2025-03-01" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Weekly assessment
 
 ```bash
-curl -s -X PUT http://localhost:3000/api/v1/tracking/weekly/assessments \
+curl -s -X PUT http://localhost:3001/api/v1/tracking/weekly/assessments \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -116,7 +141,7 @@ curl -s -X PUT http://localhost:3000/api/v1/tracking/weekly/assessments \
 
 | Variable         | Description                          |
 |------------------|--------------------------------------|
-| `PORT`           | HTTP port (default `3000`)           |
+| `PORT`           | HTTP port (default `3001` on host dev) |
 | `DATABASE_URL`   | PostgreSQL connection string         |
 | `JWT_SECRET`     | Secret for signing tokens (min 8 chars) |
 | `JWT_EXPIRES_IN` | Token lifetime (default `7d`)      |

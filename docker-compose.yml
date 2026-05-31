@@ -7,6 +7,9 @@ services:
       POSTGRES_USER: fatoven
       POSTGRES_PASSWORD: fatoven
       POSTGRES_DB: fatoven
+    ports:
+      # Host 5433 — mdw-db already uses 5432
+      - "5433:5432"
     volumes:
       - fatoven_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -31,7 +34,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       JWT_EXPIRES_IN: 7d
     ports:
-      - "3000:3000"
+      # Host 3001 — mdw-api already uses 3000
+      - "3001:3000"
 
 volumes:
   fatoven_postgres_data:

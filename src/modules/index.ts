@@ -5,6 +5,7 @@ import { createAuthMiddleware } from "./auth/auth.middleware";
 import { createAuthRouter } from "./auth/auth.routes";
 import { TrackingService } from "./tracking/tracking.service";
 import { createTrackingRouter } from "./tracking/tracking.routes";
+import { createStatsRouter } from "./stats/stats.routes";
 
 export interface AppModules {
   authService: AuthService;
@@ -19,6 +20,7 @@ export function registerModules(app: Express, env: Env): AppModules {
 
   app.use("/api/v1/auth", createAuthRouter(authService));
   app.use("/api/v1/tracking", createTrackingRouter(trackingService));
+  app.use("/api/v1/stats", createStatsRouter(authService, trackingService));
 
   return { authService, trackingService };
 }
